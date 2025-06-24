@@ -1,25 +1,11 @@
 version: 1.0
-runtime: nodejs18
+runtime: nodejs22
 build:
   commands:
     build:
-      - echo "Installing dependencies..."
-      - npm install --production
-      - echo "Build completed successfully"
+      - npm install
 run:
-  runtime-version: 18
   command: node production-backend-server.js
   network:
     port: 3005
     env: PORT
-  env:
-    - name: PORT
-      value: "3005"
-    - name: NODE_ENV
-      value: "production"
-    - name: TRADING_MODE
-      value: "paper"
-    - name: CORE_BOT_CAPITAL
-      value: "300"
-    - name: MEME_BOT_CAPITAL
-      value: "300"
