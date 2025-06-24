@@ -4,7 +4,8 @@ build:
   commands:
     build:
       - echo "Installing dependencies..."
-      - npm install
+      - npm install --production
+      - echo "Build completed successfully"
 run:
   runtime-version: 18
   command: node production-backend-server.js
