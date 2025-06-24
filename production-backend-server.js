@@ -3,10 +3,166 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 
+// =====================================================
+// TRUE AI LEARNING ENGINE FOR MEME COIN TRADING
+// =====================================================
+class MemeCoinAI {
+  constructor() {
+    // Neural network weights (simplified)
+    this.weights = {
+      socialVolume: 0.4,
+      sentimentScore: 0.3,
+      priceVelocity: 0.2,
+      volumeSpike: 0.1
+    };
+    
+    // Learning parameters
+    this.learningRate = 0.01;
+    this.tradeHistory = [];
+    this.patternMemory = new Map();
+    this.adaptationCount = 0;
+    
+    // Performance tracking
+    this.confidence = 0.5; // Starts uncertain
+    this.lastAccuracy = 0;
+    this.winRate = 0;
+    
+    console.log('🧠 AI Learning Engine initialized');
+  }
+  
+  // Learn from trading outcome
+  learn(tradeData, outcome) {
+    const profit = outcome.profit || 0;
+    const profitable = profit > 0;
+    
+    // Update trade history
+    this.tradeHistory.push({
+      ...tradeData,
+      outcome: {
+        profit,
+        profitable,
+        timestamp: Date.now()
+      }
+    });
+    
+    // Calculate new win rate
+    const recentTrades = this.tradeHistory.slice(-20); // Last 20 trades
+    this.winRate = recentTrades.filter(t => t.outcome.profitable).length / recentTrades.length;
+    
+    // Adapt weights based on outcome
+    this.adaptWeights(tradeData, profitable);
+    
+    // Update confidence
+    this.updateConfidence();
+    
+    console.log(`🧠 AI Learning: ${profitable ? 'WIN' : 'LOSS'} | Win Rate: ${(this.winRate * 100).toFixed(1)}% | Confidence: ${(this.confidence * 100).toFixed(1)}%`);
+  }
+  
+  // Adapt neural network weights
+  adaptWeights(tradeData, profitable) {
+    const adjustment = profitable ? this.learningRate : -this.learningRate;
+    
+    // Strengthen/weaken weights based on what led to this trade
+    if (tradeData.socialVolume > 500) {
+      this.weights.socialVolume += adjustment * 0.1;
+    }
+    
+    if (tradeData.sentimentScore > 0.08) {
+      this.weights.sentimentScore += adjustment * 0.1;
+    }
+    
+    if (tradeData.priceVelocity > 0.05) {
+      this.weights.priceVelocity += adjustment * 0.1;
+    }
+    
+    // Normalize weights to sum to 1
+    const total = Object.values(this.weights).reduce((sum, w) => sum + Math.abs(w), 0);
+    Object.keys(this.weights).forEach(key => {
+      this.weights[key] = this.weights[key] / total;
+    });
+    
+    this.adaptationCount++;
+    
+    if (this.adaptationCount % 10 === 0) {
+      console.log('🧠 AI Weights Adapted:', this.weights);
+    }
+  }
+  
+  // Calculate AI confidence score
+  calculateSignalStrength(marketData) {
+    const {
+      socialVolume = 0,
+      sentimentScore = 0,
+      priceVelocity = 0,
+      volumeSpike = 0
+    } = marketData;
+    
+    // AI-weighted signal calculation
+    const strength = 
+      (socialVolume / 1000) * this.weights.socialVolume +
+      (sentimentScore + 0.15) / 0.3 * this.weights.sentimentScore +
+      (priceVelocity + 0.1) / 0.2 * this.weights.priceVelocity +
+      (volumeSpike) * this.weights.volumeSpike;
+    
+    // Apply confidence modifier
+    const adjustedStrength = strength * this.confidence;
+    
+    return Math.max(0, Math.min(1, adjustedStrength));
+  }
+  
+  // Update AI confidence based on recent performance
+  updateConfidence() {
+    if (this.tradeHistory.length < 5) return;
+    
+    const recent = this.tradeHistory.slice(-10);
+    const recentWinRate = recent.filter(t => t.outcome.profitable).length / recent.length;
+    
+    // Increase confidence if performing well
+    if (recentWinRate > 0.6) {
+      this.confidence = Math.min(1, this.confidence + 0.05);
+    } else if (recentWinRate < 0.4) {
+      this.confidence = Math.max(0.2, this.confidence - 0.05);
+    }
+  }
+  
+  // Get AI recommendation
+  getRecommendation(symbol, marketData) {
+    const signalStrength = this.calculateSignalStrength(marketData);
+    
+    return {
+      action: signalStrength > 0.7 ? 'BUY' : signalStrength < 0.3 ? 'SELL' : 'HOLD',
+      confidence: signalStrength,
+      strength: signalStrength,
+      reasoning: this.generateReasoning(marketData, signalStrength),
+      aiWeights: { ...this.weights },
+      learningStats: {
+        totalTrades: this.tradeHistory.length,
+        winRate: this.winRate,
+        adaptations: this.adaptationCount,
+        confidence: this.confidence
+      }
+    };
+  }
+  
+  generateReasoning(marketData, strength) {
+    const reasons = [];
+    
+    if (marketData.socialVolume > 600) reasons.push('High social volume detected');
+    if (marketData.sentimentScore > 0.08) reasons.push('Strong positive sentiment');
+    if (marketData.priceVelocity > 0.05) reasons.push('Price momentum building');
+    if (strength > 0.7) reasons.push('AI confidence high');
+    
+    return reasons.join('; ');
+  }
+}
+
 const app = express();
 const PORT = process.env.PORT || 3005;
 
-// Initialize trading engine state
+// Initialize AI engine
+const memeAI = new MemeCoinAI();
+
+// Initialize trading engine state - RESET COUNTERS FOR CLEAN DATA
 const tradingEngine = {
   isRunning: false,
   startTime: Date.now(),
@@ -17,7 +173,7 @@ const tradingEngine = {
       initialBalance: parseFloat(process.env.CORE_BOT_CAPITAL) || 300,
       realizedPnL: 0,
       unrealizedPnL: 0,
-      totalTrades: 0,
+      totalTrades: 0, // RESET TO ZERO
       winRate: 0
     },
     positions: []
@@ -29,7 +185,7 @@ const tradingEngine = {
       initialBalance: parseFloat(process.env.MEME_BOT_CAPITAL) || 300,
       realizedPnL: 0,
       unrealizedPnL: 0,
-      totalTrades: 0,
+      totalTrades: 0, // RESET TO ZERO
       winRate: 0
     },
     positions: []
@@ -44,7 +200,7 @@ const tradingEngine = {
 app.use(cors());
 app.use(express.json());
 
-// Start trading simulation
+// Start trading simulation with AI
 console.log('🚀 Real Trading Engine initialized');
 console.log(`💰 Core Bot Capital: $${tradingEngine.coreBotData.capital}`);
 console.log(`🚀 Meme Bot Capital: $${tradingEngine.memeBotData.capital}`);
@@ -52,20 +208,143 @@ console.log('🎯 Starting Real Trading Engine...');
 
 tradingEngine.isRunning = true;
 
-// Simulate some trading activity
+// AI-powered trading simulation
+let aiTradingInterval;
+
+function startAITrading() {
+  // Simulate meme bot AI trading every 2-5 minutes
+  const nextTradeDelay = (Math.random() * 180000) + 120000; // 2-5 minutes
+  
+  aiTradingInterval = setTimeout(async () => {
+    if (!tradingEngine.isRunning) return;
+    
+    try {
+      // Simulate AI analyzing market conditions
+      const memeCoins = ['DOGE/USD', 'SHIB/USD', 'PEPE/USD', 'FLOKI/USD', 'BONK/USD'];
+      const randomCoin = memeCoins[Math.floor(Math.random() * memeCoins.length)];
+      
+      // Simulate market data for AI analysis
+      const marketData = {
+        socialVolume: Math.floor(Math.random() * 1000) + 200,
+        sentimentScore: (Math.random() - 0.5) * 0.3, // -0.15 to 0.15
+        priceVelocity: (Math.random() - 0.5) * 0.2, // -0.1 to 0.1
+        volumeSpike: Math.random() * 0.5
+      };
+      
+      // Get AI recommendation
+      const aiRecommendation = memeAI.getRecommendation(randomCoin, marketData);
+      
+      // Execute trade based on AI recommendation
+      if (aiRecommendation.action === 'BUY' && aiRecommendation.confidence > 0.7) {
+        executeAIMemeTrade(randomCoin, 'BUY', marketData, aiRecommendation);
+      } else if (aiRecommendation.action === 'SELL' && tradingEngine.memeBotData.positions.length > 0) {
+        const position = tradingEngine.memeBotData.positions[0]; // Sell oldest position
+        executeAIMemeTrade(position.symbol, 'SELL', marketData, aiRecommendation, position);
+      }
+      
+    } catch (error) {
+      console.error('AI Trading error:', error.message);
+    }
+    
+    // Schedule next AI trade
+    startAITrading();
+  }, nextTradeDelay);
+}
+
+function executeAIMemeTrade(symbol, side, marketData, aiRecommendation, existingPosition = null) {
+  const basePrice = symbol === 'DOGE/USD' ? 0.095 : 
+                   symbol === 'SHIB/USD' ? 0.000024 :
+                   symbol === 'PEPE/USD' ? 0.0000008 :
+                   symbol === 'FLOKI/USD' ? 0.00003 : 0.00001; // BONK
+  
+  // Add some price volatility
+  const price = basePrice * (1 + (Math.random() - 0.5) * 0.1); // ±5% volatility
+  
+  let pnl = 0;
+  
+  if (side === 'BUY') {
+    const positionValue = tradingEngine.memeBotData.capital * 0.03; // 3% position size
+    const quantity = positionValue / price;
+    
+    const position = {
+      id: `meme_ai_${Date.now()}`,
+      symbol,
+      side,
+      quantity,
+      entryPrice: price,
+      currentPrice: price,
+      value: positionValue,
+      entryTime: Date.now(),
+      aiData: {
+        confidence: aiRecommendation.confidence,
+        reasoning: aiRecommendation.reasoning,
+        weights: aiRecommendation.aiWeights
+      }
+    };
+    
+    tradingEngine.memeBotData.positions.push(position);
+    console.log(`🧠 AI Meme Bot BUY: ${symbol} at $${price.toFixed(8)} | Confidence: ${(aiRecommendation.confidence * 100).toFixed(1)}%`);
+    
+  } else { // SELL
+    const holdTime = Date.now() - existingPosition.entryTime;
+    const value = existingPosition.quantity * price;
+    pnl = value - existingPosition.value;
+    
+    // Remove position
+    tradingEngine.memeBotData.positions = tradingEngine.memeBotData.positions.filter(p => p.id !== existingPosition.id);
+    
+    // Let AI learn from this trade outcome
+    const tradeData = {
+      symbol,
+      socialVolume: marketData.socialVolume,
+      sentimentScore: marketData.sentimentScore,
+      priceVelocity: marketData.priceVelocity,
+      volumeSpike: marketData.volumeSpike,
+      holdTime
+    };
+    
+    const outcome = {
+      profit: pnl,
+      profitPercent: pnl / existingPosition.value
+    };
+    
+    // AI LEARNS from the trade outcome
+    memeAI.learn(tradeData, outcome);
+    
+    // Update metrics
+    tradingEngine.memeBotData.metrics.realizedPnL += pnl;
+    tradingEngine.memeBotData.metrics.totalValue += pnl;
+    tradingEngine.memeBotData.metrics.totalTrades++;
+    
+    // Update win rate
+    const wins = tradingEngine.memeBotData.metrics.totalTrades > 0 ? 
+      Math.floor(tradingEngine.memeBotData.metrics.winRate * (tradingEngine.memeBotData.metrics.totalTrades - 1) / 100) : 0;
+    
+    if (pnl > 0) {
+      tradingEngine.memeBotData.metrics.winRate = ((wins + 1) / tradingEngine.memeBotData.metrics.totalTrades) * 100;
+    } else {
+      tradingEngine.memeBotData.metrics.winRate = (wins / tradingEngine.memeBotData.metrics.totalTrades) * 100;
+    }
+    
+    console.log(`🧠 AI Meme Bot SELL: ${symbol} at $${price.toFixed(8)} | P&L: $${pnl.toFixed(2)} | AI Learning: ${pnl > 0 ? 'WIN' : 'LOSS'}`);
+  }
+}
+
+// Simulate some initial core bot trading activity (just for demo)
 setTimeout(() => {
   console.log('✅ Real Trading Engine started successfully');
   
-  // Simulate a trade
+  // Start AI-powered meme bot trading
+  startAITrading();
+  
+  // Simulate occasional core bot trades
   const btcPrice = 104239.90;
   const ethPrice = 2365.17;
   
-  console.log(`🎯 Core Trade: BUY BTC/USD at $${btcPrice.toFixed(6)} | P&L: $0.00`);
-  console.log(`🎯 Core Bot BUY: BTC/USD at $${btcPrice}`);
-  console.log(`🎯 Core Trade: BUY ETH/USD at $${ethPrice.toFixed(6)} | P&L: $0.00`);
-  console.log(`🎯 Core Bot BUY: ETH/USD at $${ethPrice}`);
+  // Only log initial trades, don't inflate counters
+  console.log(`🎯 Core Bot monitoring: BTC/USD at $${btcPrice}`);
+  console.log(`🎯 Core Bot monitoring: ETH/USD at $${ethPrice}`);
   
-  tradingEngine.coreBotData.metrics.totalTrades = 2;
   tradingEngine.marketData['BTC/USD'].price = btcPrice;
   tradingEngine.marketData['ETH/USD'].price = ethPrice;
 }, 2000);
@@ -121,13 +400,22 @@ app.get('/api/trading/core-bot-status', (req, res) => {
 });
 
 app.get('/api/trading/meme-bot-status', (req, res) => {
+  const aiStats = memeAI ? {
+    confidence: memeAI.confidence,
+    winRate: memeAI.winRate,
+    totalAITrades: memeAI.tradeHistory.length,
+    adaptations: memeAI.adaptationCount,
+    currentWeights: memeAI.weights
+  } : null;
+
   res.json({
     ...tradingEngine.memeBotData,
-    strategy: 'Social Momentum + Moonshot Detection',
+    strategy: 'AI-Powered Moonshot Detection',
     targetAssets: 'DOGE, SHIB, PEPE, FLOKI, BONK',
     riskLevel: 'High Risk / High Reward',
     exchanges: 'Binance.US, Coinbase Advanced',
     status: 'active',
+    aiLearning: aiStats,
     lastUpdate: new Date().toISOString()
   });
 });
@@ -347,14 +635,22 @@ app.use((err, req, res, next) => {
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully...');
   tradingEngine.isRunning = false;
+  if (aiTradingInterval) {
+    clearTimeout(aiTradingInterval);
+  }
   console.log('🛑 Real Trading Engine stopped');
+  console.log('🧠 AI Learning Engine stopped');
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully...');
   tradingEngine.isRunning = false;
+  if (aiTradingInterval) {
+    clearTimeout(aiTradingInterval);
+  }
   console.log('🛑 Real Trading Engine stopped');
+  console.log('🧠 AI Learning Engine stopped');
   process.exit(0);
 });
 
