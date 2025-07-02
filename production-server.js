@@ -248,7 +248,7 @@ app.get('/api/prices', (req, res) => {
 
 // Dashboard Route
 app.get('/', (req, res) => {
-  res.send(\`
+  res.send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -724,12 +724,12 @@ app.get('/', (req, res) => {
   </script>
 </body>
 </html>
-  \`);
+  `);
 });
 
 app.listen(port, () => {
-  console.log(\`🚀 Paper Trading Bot running on port \${port}\`);
-  console.log(\`📊 Dashboard: http://localhost:\${port}\`);
-  console.log(\`💰 Starting with $300 paper trading balance\`);
-  console.log(\`📈 Real-time price simulation active\`);
+  console.log(`🚀 Paper Trading Bot running on port ${port}`);
+  console.log(`📊 Dashboard: http://localhost:${port}`);
+  console.log(`💰 Starting with $300 paper trading balance`);
+  console.log(`📈 Real-time price simulation active`);
 });
