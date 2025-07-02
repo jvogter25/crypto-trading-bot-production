@@ -2,9 +2,9 @@
   "name": "crypto-trading-bot",
   "version": "1.0.0",
   "description": "24/7 Crypto Trading Bot with AI-powered strategies",
-  "main": "test-server.js",
+  "main": "production-server.js",
   "scripts": {
-    "start": "node test-server.js"
+    "start": "node production-server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
