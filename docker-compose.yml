@@ -1,0 +1,291 @@
+# =====================================================
+# CRYPTO TRADING BOT - DOCKER COMPOSE CONFIGURATION
+# =====================================================
+# Complete development and testing environment
+# Includes all services with proper networking and volumes
+
+version: '3.8'
+
+services:
+  # =====================================================
+  # DATABASE SERVICE
+  # =====================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: crypto_trading_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-crypto_trading}
+      POSTGRES_USER: ${POSTGRES_USER:-crypto_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crypto_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./crypto-trading-backend/database:/docker-entrypoint-initdb.d:ro
+      - ./backups:/backups
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - crypto_trading_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crypto_user} -d ${POSTGRES_DB:-crypto_trading}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+
+  # =====================================================
+  # REDIS SERVICE (for caching and session management)
+  # =====================================================
+  redis:
+    image: redis:7-alpine
+    container_name: crypto_trading_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_password}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - crypto_trading_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  # =====================================================
+  # BACKEND SERVICE
+  # =====================================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: production
+    container_name: crypto_trading_backend
+    restart: unless-stopped
+    environment:
+      # Application settings
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      
+      # Database configuration
+      DATABASE_URL: postgresql://${POSTGRES_USER:-crypto_user}:${POSTGRES_PASSWORD:-crypto_password}@postgres:5432/${POSTGRES_DB:-crypto_trading}
+      
+      # Redis configuration
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_password}@redis:6379
+      
+      # Exchange API credentials (use .env file)
+      BINANCE_US_API_KEY: ${BINANCE_US_API_KEY}
+      BINANCE_US_API_SECRET: ${BINANCE_US_API_SECRET}
+      COINBASE_ADVANCED_API_KEY: ${COINBASE_ADVANCED_API_KEY}
+      COINBASE_ADVANCED_API_SECRET: ${COINBASE_ADVANCED_API_SECRET}
+      KRAKEN_API_KEY: ${KRAKEN_API_KEY}
+      KRAKEN_API_SECRET: ${KRAKEN_API_SECRET}
+      
+      # External integrations
+      GOOGLE_SHEETS_API_KEY: ${GOOGLE_SHEETS_API_KEY}
+      GOOGLE_SHEETS_SPREADSHEET_ID: ${GOOGLE_SHEETS_SPREADSHEET_ID}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL}
+      
+      # Security and monitoring
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_change_in_production}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-your_encryption_key_change_in_production}
+      
+      # Trading configuration
+      LIVE_TRADING_ENABLED: ${LIVE_TRADING_ENABLED:-false}
+      MAX_ALLOCATION: ${MAX_ALLOCATION:-20.00}
+      EMERGENCY_STOP_ENABLED: ${EMERGENCY_STOP_ENABLED:-true}
+      
+      # Monitoring
+      SENTRY_DSN: ${SENTRY_DSN}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ./crypto-trading-backend/logs:/app/logs
+      - ./crypto-trading-backend/google-credentials.json:/app/google-credentials.json:ro
+      - ./backups:/app/backups
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    networks:
+      - crypto_trading_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  # =====================================================
+  # FRONTEND SERVICE
+  # =====================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: production
+      args:
+        REACT_APP_API_URL: http://localhost:${BACKEND_PORT:-3000}
+        REACT_APP_WS_URL: ws://localhost:${BACKEND_PORT:-3000}
+    container_name: crypto_trading_frontend
+    restart: unless-stopped
+    environment:
+      NGINX_HOST: localhost
+      NGINX_PORT: 80
+    ports:
+      - "${FRONTEND_PORT:-3001}:80"
+    networks:
+      - crypto_trading_network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # =====================================================
+  # MONITORING SERVICES
+  # =====================================================
+  
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: crypto_trading_prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    networks:
+      - crypto_trading_network
+    profiles:
+      - monitoring
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: crypto_trading_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "${GRAFANA_PORT:-3002}:3000"
+    networks:
+      - crypto_trading_network
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+
+  # =====================================================
+  # DEVELOPMENT TOOLS
+  # =====================================================
+  
+  # PgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: crypto_trading_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@cryptobot.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    networks:
+      - crypto_trading_network
+    depends_on:
+      - postgres
+    profiles:
+      - development
+
+  # Redis Commander for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: crypto_trading_redis_commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:${REDIS_PASSWORD:-redis_password}
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
+    networks:
+      - crypto_trading_network
+    depends_on:
+      - redis
+    profiles:
+      - development
+
+# =====================================================
+# NETWORKS
+# =====================================================
+networks:
+  crypto_trading_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# =====================================================
+# VOLUMES
+# =====================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  pgadmin_data:
+    driver: local 

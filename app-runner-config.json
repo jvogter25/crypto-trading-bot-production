@@ -1,0 +1,42 @@
+{
+  "ServiceName": "crypto-trading-bot",
+  "SourceConfiguration": {
+    "ImageRepository": {
+      "ImageIdentifier": "047719620219.dkr.ecr.us-east-1.amazonaws.com/crypto-trading-bot:latest",
+      "ImageConfiguration": {
+        "Port": "3005",
+        "RuntimeEnvironmentVariables": {
+          "NODE_ENV": "production",
+          "PORT": "3005",
+          "PAPER_TRADING_MODE": "true",
+          "INITIAL_CAPITAL_CORE_BOT": "300",
+          "INITIAL_CAPITAL_MEME_BOT": "300",
+          "ENABLE_REAL_TIME_TRADING": "false",
+          "RISK_MANAGEMENT_ENABLED": "true",
+          "MAX_DAILY_LOSS_PERCENTAGE": "5",
+          "POSITION_SIZE_LIMIT": "5",
+          "LOG_LEVEL": "info",
+          "HEALTH_CHECK_ENABLED": "true"
+        }
+      },
+      "ImageRepositoryType": "ECR"
+    },
+    "AutoDeploymentsEnabled": false,
+    "AuthenticationConfiguration": {
+      "AccessRoleArn": "arn:aws:iam::047719620219:role/AppRunnerECRAccessRole"
+    }
+  },
+  "InstanceConfiguration": {
+    "Cpu": "1 vCPU",
+    "Memory": "2 GB",
+    "InstanceRoleArn": "arn:aws:iam::047719620219:role/AppRunnerServiceRole"
+  },
+  "HealthCheckConfiguration": {
+    "Protocol": "HTTP",
+    "Path": "/health",
+    "Interval": 20,
+    "Timeout": 5,
+    "HealthyThreshold": 2,
+    "UnhealthyThreshold": 3
+  }
+}

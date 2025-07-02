@@ -1,0 +1,158 @@
+
+## Launch Features (MVP)
+
+### Stablecoin + USD Auto-Trading Engine
+
+**An automated trading engine that continuously monitors a select set of five stablecoins and USD as a reserve asset. It executes trades on Kraken based on technical indicators and stores a portion of each profitable trade in USD to lock in gains.** The system is designed to outperform buy-and-hold during sideways or volatile markets and manage capital conservatively.
+
+* Real-time Kraken price feed via WebSockets  
+* Strategy logic using RSI, Bollinger Bands, MA crossovers, and volatility triggers  
+* On every profitable trade, **10–15% of gains are moved to USD** as a reserve  
+* USD is partially re-deployed into trades when strong signals arise, but a core USD balance is always preserved  
+* All trades are logged to **Supabase** and a **Google Sheet**, including a master tab and monthly sub-tabs  
+* Supports paper trading mode for safe simulation  
+* Handles Kraken API downtime with a **fallback queue system** that resumes trading when service returns  
+* Resilient retry logic and rate limit handling
+
+#### Tech Involved
+
+* Kraken WebSocket & REST APIs  
+* Python or Node.js for core trading logic  
+* Supabase (Postgres + logging)  
+* Google Sheets API (`gspread`)  
+* AWS App Runner or Lambda  
+* Docker for local dev parity
+
+#### Main Requirements
+
+* Real-time price updates + historical data windowing  
+* Kraken order execution + rate limit resilience  
+* USD extraction and reinvestment logic  
+* Trade logging to Supabase + Sheets  
+* Realtime fallback queue system  
+* Adjustable strategy parameters
+
+---
+
+### Trading Performance Dashboard
+
+**A clean, real-time dashboard to track bot performance, trade history, asset allocation, and profits over time — benchmarked against BTC/ETH/USDT HODL.** Mobile-optimized for easy access on the go, the dashboard allows toggling live vs paper mode and exporting CSV logs by month.
+
+* Current holdings overview (stablecoins + USD)  
+* Visual ROI comparison against HODL indexes  
+* Trade log table with filtering, notes, and export  
+* Live strategy settings and toggles  
+* Mobile-optimized layout  
+* CSV export of all trades and monthly summaries
+
+#### Tech Involved
+
+* React + Tailwind (web + mobile)  
+* Supabase (backend data layer)  
+* Node.js or Express API  
+* Chart.js or Recharts (for performance graphs)
+
+#### Main Requirements
+
+* Secure login  
+* Portfolio + ROI visualization  
+* Trade history filtering  
+* CSV export per month  
+* Responsive design for mobile view
+
+---
+
+## Future Features (Post-MVP)
+
+### AI-Powered Sentiment Engine
+
+**An opt-in module that scans Twitter and crypto news to identify trending coins not in the current trading universe. Uses Claude or OpenAI models to assess sentiment signals and surface high-confidence trade ideas.**
+
+* Twitter scraping or API feed with hourly sentiment scoring  
+* NLP model to score content as bullish, bearish, or neutral  
+* Detects coin-specific spikes in mentions and sentiment  
+* Optional “watchlist” suggestions for manual or auto trading  
+* Avoids spam/hype coins via filtering rules (volume + credibility)
+
+#### Tech Involved
+
+* Twitter/X API or snscrape  
+* Claude or OpenAI API  
+* Supabase (signal store)  
+* Scheduled cron job or microservice
+
+#### Main Requirements
+
+* Mention volume tracking  
+* NLP sentiment scoring  
+* Coin filtering and alerts  
+* Signal-to-bot integration
+
+---
+
+### Smart Portfolio Allocation Engine
+
+**Adjusts capital allocation across coins and USD based on volatility and performance. Helps balance risk and improve reward over time by reallocating capital into higher-performing assets and preserving USD during downturns.**
+
+* Uses historical trade metrics to optimize exposure  
+* Dynamically rebalances between USD and stables  
+* Sharpe ratio and drawdown-based weighting model  
+* Optional toggle: risk-on vs risk-off mode
+
+#### Tech Involved
+
+* Strategy engine (modular component)  
+* Supabase (weights, metrics)  
+* Kraken API (allocation execution)
+
+#### Main Requirements
+
+* Volatility + ROI tracking  
+* Dynamic exposure logic  
+* Rebalancing thresholds  
+* Integration with core trade engine
+
+---
+
+## System Diagram
+
+```
++----------------------+          +-------------------+         +------------------+
+|   Kraken WebSocket   | -------> |   Trading Engine  | ------> |   Kraken REST    |
+|    (Market Feed)     |          |  (Signal Logic)   |         |  (Buy/Sell API)  |
++----------------------+          +-------------------+         +------------------+
+                                      |      |       |
+                        +-------------+      |       +---------------------+
+                        |                    |                             |
+                        v                    v                             v
+                +--------------+     +------------------+       +-----------------------+
+                | Supabase DB  |     | Supabase Logs    |       |  Google Sheets (Log)  |
+                | (Portfolio)  |     | (Trade History)  |       |  One Master + Monthly |
+                +--------------+     +------------------+       +-----------------------+
+                        |
+                        v
+               +-------------------------+
+               |  Web Dashboard (Mobile) |
+               |  React + Charting UI    |
+               +-------------------------+
+```
+
+---
+
+## Questions & Clarifications
+
+* Do we want to allow USD “floor” to be configurable in the future (e.g., never drop below $X in reserve)?
+* Should fallback queue support manual review of trades before execution post-recovery?
+* Do we want trade notes/tags per transaction (e.g., “Triggered by Bollinger squeeze + RSI”)?
+* Will the AI sentiment signals be displayed in the dashboard as well (timeline or coin profile)?
+
+---
+
+## List of Architecture Consideration Questions
+
+* Should strategy settings (USD %, thresholds, toggles) be editable from the dashboard?
+* What’s the preferred Google Sheets organization? All logs in one file or split per quarter/year?
+* Do we want alerts if the USD % drops below a certain buffer level?
+* Do we want eventual multi-user support with role-based access to dashboard/trading settings?
+* Do we want the bot to auto-pause if Kraken downtime exceeds X minutes?
+* If backtesting is needed, should we pull Kraken historical candles or simulate based on saved trade logs?

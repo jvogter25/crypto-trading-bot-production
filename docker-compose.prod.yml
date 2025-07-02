@@ -1,0 +1,377 @@
+# =====================================================
+# CRYPTO TRADING BOT - PRODUCTION DOCKER COMPOSE
+# =====================================================
+# Production-optimized configuration with security and performance
+# Use with: docker-compose -f docker-compose.prod.yml up
+
+version: '3.8'
+
+services:
+  # =====================================================
+  # DATABASE SERVICE (Production Optimized)
+  # =====================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: crypto_trading_db_prod
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: crypto_trading
+      POSTGRES_USER: crypto_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ./crypto-trading-backend/src/database:/docker-entrypoint-initdb.d
+    networks:
+      - crypto_trading_network_prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crypto_user -d crypto_trading"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=300
+      -c shared_buffers=512MB
+      -c effective_cache_size=2GB
+      -c maintenance_work_mem=128MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=32MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # =====================================================
+  # REDIS SERVICE (Production Optimized)
+  # =====================================================
+  redis:
+    image: redis:7-alpine
+    container_name: crypto_trading_redis_prod
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - crypto_trading_network_prod
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # =====================================================
+  # BACKEND SERVICE (Production Optimized)
+  # =====================================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: production
+    container_name: crypto_trading_backend_prod
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Application settings
+      NODE_ENV: production
+      PORT: 3000
+      
+      # Database configuration
+      DATABASE_URL: postgresql://crypto_user:${POSTGRES_PASSWORD}@crypto_trading_db_prod:5432/crypto_trading
+      
+      # Redis configuration
+      REDIS_URL: redis://crypto_trading_redis_prod:6379
+      
+      # Exchange API credentials
+      BINANCE_US_API_KEY: ${BINANCE_US_API_KEY}
+      BINANCE_US_API_SECRET: ${BINANCE_US_API_SECRET}
+      COINBASE_API_KEY: ${COINBASE_API_KEY}
+      COINBASE_API_SECRET: ${COINBASE_API_SECRET}
+      COINBASE_PASSPHRASE: ${COINBASE_PASSPHRASE}
+      KRAKEN_API_KEY: ${KRAKEN_API_KEY}
+      KRAKEN_API_SECRET: ${KRAKEN_API_SECRET}
+      TWITTER_API_KEY: ${TWITTER_API_KEY}
+      TWITTER_API_SECRET: ${TWITTER_API_SECRET}
+      TWITTER_BEARER_TOKEN: ${TWITTER_BEARER_TOKEN}
+      
+      # External integrations
+      GOOGLE_SHEETS_API_KEY: ${GOOGLE_SHEETS_API_KEY}
+      GOOGLE_SHEETS_SPREADSHEET_ID: ${GOOGLE_SHEETS_SPREADSHEET_ID}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL}
+      
+      # Security
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      SESSION_SECRET: ${SESSION_SECRET}
+      
+      # Trading configuration
+      PAPER_TRADING_MODE: true
+      INITIAL_CAPITAL_CORE_BOT: 300
+      INITIAL_CAPITAL_MEME_BOT: 300
+      ENABLE_REAL_TIME_TRADING: false
+      RISK_MANAGEMENT_ENABLED: true
+      MAX_DAILY_LOSS_PERCENTAGE: 5
+      POSITION_SIZE_LIMIT: 5
+      
+      # Monitoring
+      SENTRY_DSN: ${SENTRY_DSN}
+      LOG_LEVEL: info
+      
+      # Performance
+      NODE_OPTIONS: "--max-old-space-size=1024"
+    volumes:
+      - ./logs:/app/logs
+      - ./google-credentials.json:/app/google-credentials.json:ro
+      - ./backups:/app/backups
+    networks:
+      - crypto_trading_network_prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/status', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # =====================================================
+  # FRONTEND SERVICE (Production Optimized)
+  # =====================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: production
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL}
+        REACT_APP_WS_URL: ${REACT_APP_WS_URL}
+    container_name: crypto_trading_frontend_prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - crypto_trading_network_prod
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # =====================================================
+  # MONITORING SERVICES (Production)
+  # =====================================================
+  
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: crypto_trading_prometheus_prod
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=90d'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.wal-compression'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data_prod:/prometheus
+    networks:
+      - crypto_trading_network_prod
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: crypto_trading_grafana_prod
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-worldmap-panel
+      GF_SECURITY_COOKIE_SECURE: true
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL}
+    volumes:
+      - grafana_data_prod:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - crypto_trading_network_prod
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # =====================================================
+  # BACKUP SERVICE
+  # =====================================================
+  backup:
+    image: postgres:15-alpine
+    container_name: crypto_trading_backup
+    restart: "no"
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    networks:
+      - crypto_trading_network_prod
+    depends_on:
+      - postgres
+    command: ["/bin/sh", "/backup.sh"]
+    profiles:
+      - backup
+
+# =====================================================
+# NETWORKS (Production)
+# =====================================================
+networks:
+  crypto_trading_network_prod:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+    driver_opts:
+      com.docker.network.bridge.name: crypto_trading_prod
+
+# =====================================================
+# VOLUMES (Production)
+# =====================================================
+volumes:
+  postgres_data_prod:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./data}/postgres
+  redis_data_prod:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./data}/redis
+  prometheus_data_prod:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./data}/prometheus
+  grafana_data_prod:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./data}/grafana 

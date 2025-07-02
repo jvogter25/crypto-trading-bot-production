@@ -1,0 +1,328 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Crypto Trading Bot - Production Deployment on AWS ECS Fargate'
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID for the deployment
+  
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnet IDs for the ECS service (use private subnets)
+  
+  PublicSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Public subnet IDs for the load balancer
+  
+  DomainName:
+    Type: String
+    Description: Domain name for the trading bot (optional)
+    Default: ""
+  
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [development, staging, production]
+    Description: Environment name
+
+Resources:
+  # ECS Cluster
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub '${AWS::StackName}-cluster'
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+        - CapacityProvider: FARGATE_SPOT
+          Weight: 2
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+
+  # Security Group for ECS Tasks
+  ECSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Crypto Trading Bot ECS tasks
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 10.0.0.0/8
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          CidrIp: 10.0.0.0/8
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  # Security Group for Application Load Balancer
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Application Load Balancer
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  # Application Load Balancer
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub '${AWS::StackName}-alb'
+      Scheme: internet-facing
+      Type: application
+      Subnets: !Ref PublicSubnetIds
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+
+  # Target Group
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub '${AWS::StackName}-tg'
+      Port: 3000
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref VpcId
+      HealthCheckPath: /api/status
+      HealthCheckProtocol: HTTP
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+
+  # ALB Listener
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  # ECS Task Execution Role
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref TradingBotSecrets
+
+  # ECS Task Role
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  # Secrets Manager for API Keys
+  TradingBotSecrets:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${AWS::StackName}-secrets'
+      Description: API keys and secrets for the crypto trading bot
+      SecretString: !Sub |
+        {
+          "KRAKEN_API_KEY": "YOUR_KRAKEN_API_KEY",
+          "KRAKEN_API_SECRET": "YOUR_KRAKEN_API_SECRET",
+          "BINANCE_US_API_KEY": "YOUR_BINANCE_US_API_KEY",
+          "BINANCE_US_API_SECRET": "YOUR_BINANCE_US_API_SECRET",
+          "COINBASE_API_KEY": "YOUR_COINBASE_API_KEY",
+          "COINBASE_API_SECRET": "YOUR_COINBASE_API_SECRET",
+          "COINBASE_PASSPHRASE": "YOUR_COINBASE_PASSPHRASE",
+          "TWITTER_API_KEY": "YOUR_TWITTER_API_KEY",
+          "TWITTER_API_SECRET": "YOUR_TWITTER_API_SECRET",
+          "TWITTER_BEARER_TOKEN": "YOUR_TWITTER_BEARER_TOKEN",
+          "JWT_SECRET": "your-jwt-secret-here",
+          "ENCRYPTION_KEY": "your-encryption-key-here",
+          "SESSION_SECRET": "your-session-secret-here",
+          "POSTGRES_PASSWORD": "your-postgres-password-here"
+        }
+
+  # CloudWatch Log Group
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/ecs/${AWS::StackName}'
+      RetentionInDays: 7
+
+  # ECS Task Definition
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${AWS::StackName}-task'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: 1024
+      Memory: 2048
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      TaskRoleArn: !Ref ECSTaskRole
+      ContainerDefinitions:
+        - Name: crypto-trading-bot
+          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/crypto-trading-bot:latest'
+          Essential: true
+          PortMappings:
+            - ContainerPort: 3000
+              Protocol: tcp
+          Environment:
+            - Name: NODE_ENV
+              Value: !Ref Environment
+            - Name: PORT
+              Value: '3000'
+            - Name: PAPER_TRADING_MODE
+              Value: 'true'
+            - Name: INITIAL_CAPITAL_CORE_BOT
+              Value: '300'
+            - Name: INITIAL_CAPITAL_MEME_BOT
+              Value: '300'
+            - Name: ENABLE_REAL_TIME_TRADING
+              Value: 'false'
+            - Name: RISK_MANAGEMENT_ENABLED
+              Value: 'true'
+            - Name: MAX_DAILY_LOSS_PERCENTAGE
+              Value: '5'
+            - Name: POSITION_SIZE_LIMIT
+              Value: '5'
+          Secrets:
+            - Name: KRAKEN_API_KEY
+              ValueFrom: !Sub '${TradingBotSecrets}:KRAKEN_API_KEY::'
+            - Name: KRAKEN_API_SECRET
+              ValueFrom: !Sub '${TradingBotSecrets}:KRAKEN_API_SECRET::'
+            - Name: BINANCE_US_API_KEY
+              ValueFrom: !Sub '${TradingBotSecrets}:BINANCE_US_API_KEY::'
+            - Name: BINANCE_US_API_SECRET
+              ValueFrom: !Sub '${TradingBotSecrets}:BINANCE_US_API_SECRET::'
+            - Name: COINBASE_API_KEY
+              ValueFrom: !Sub '${TradingBotSecrets}:COINBASE_API_KEY::'
+            - Name: COINBASE_API_SECRET
+              ValueFrom: !Sub '${TradingBotSecrets}:COINBASE_API_SECRET::'
+            - Name: COINBASE_PASSPHRASE
+              ValueFrom: !Sub '${TradingBotSecrets}:COINBASE_PASSPHRASE::'
+            - Name: TWITTER_API_KEY
+              ValueFrom: !Sub '${TradingBotSecrets}:TWITTER_API_KEY::'
+            - Name: TWITTER_API_SECRET
+              ValueFrom: !Sub '${TradingBotSecrets}:TWITTER_API_SECRET::'
+            - Name: TWITTER_BEARER_TOKEN
+              ValueFrom: !Sub '${TradingBotSecrets}:TWITTER_BEARER_TOKEN::'
+            - Name: JWT_SECRET
+              ValueFrom: !Sub '${TradingBotSecrets}:JWT_SECRET::'
+            - Name: ENCRYPTION_KEY
+              ValueFrom: !Sub '${TradingBotSecrets}:ENCRYPTION_KEY::'
+            - Name: SESSION_SECRET
+              ValueFrom: !Sub '${TradingBotSecrets}:SESSION_SECRET::'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - 'node -e "require(\"http\").get(\"http://localhost:3000/api/status\", (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"'
+            Interval: 30
+            Timeout: 10
+            Retries: 3
+            StartPeriod: 60
+
+  # ECS Service
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn: ALBListener
+    Properties:
+      ServiceName: !Sub '${AWS::StackName}-service'
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 1
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+          Subnets: !Ref SubnetIds
+          AssignPublicIp: DISABLED
+      LoadBalancers:
+        - ContainerName: crypto-trading-bot
+          ContainerPort: 3000
+          TargetGroupArn: !Ref TargetGroup
+      HealthCheckGracePeriodSeconds: 60
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+
+Outputs:
+  LoadBalancerURL:
+    Description: URL of the Application Load Balancer
+    Value: !Sub 'http://${ApplicationLoadBalancer.DNSName}'
+    Export:
+      Name: !Sub '${AWS::StackName}-LoadBalancerURL'
+  
+  ECSClusterName:
+    Description: Name of the ECS Cluster
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub '${AWS::StackName}-ECSCluster'
+  
+  SecretsManagerArn:
+    Description: ARN of the Secrets Manager secret
+    Value: !Ref TradingBotSecrets
+    Export:
+      Name: !Sub '${AWS::StackName}-SecretsArn' 

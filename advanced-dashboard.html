@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 Crypto Trading Bot - Advanced Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .dark-card {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .trading-log {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .trading-log::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .trading-log::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .trading-log::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        .trading-log::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-healthy { background-color: #10b981; }
+        .status-warning { background-color: #f59e0b; }
+        .status-error { background-color: #ef4444; }
+        
+        .metric-card {
+            transition: transform 0.2s ease-in-out;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white p-6 shadow-lg">
+        <div class="container mx-auto">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold">🚀 Crypto Trading Bot</h1>
+                    <p class="text-blue-100">Advanced Real-Time Dashboard</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center">
+                        <span class="status-indicator pulse-dot" id="connectionStatus"></span>
+                        <span id="connectionText">Connecting...</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-blue-100">Last Update</div>
+                        <div class="font-semibold" id="lastUpdate">--:--:--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard -->
+    <main class="container mx-auto p-6">
+        <!-- Status Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="card rounded-xl p-6 shadow-lg metric-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Core Bot Status</p>
+                        <p class="text-2xl font-bold text-gray-800" id="coreBotStatus">--</p>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-full">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <span class="text-sm text-gray-500">Trades: </span>
+                    <span class="text-sm font-semibold" id="coreBotTradesOverview">0</span>
+                </div>
+            </div>
+
+            <div class="card rounded-xl p-6 shadow-lg metric-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Meme Bot Status</p>
+                        <p class="text-2xl font-bold text-gray-800" id="memeBotStatus">--</p>
+                    </div>
+                    <div class="bg-purple-100 p-3 rounded-full">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <span class="text-sm text-gray-500">AI Confidence: </span>
+                    <span class="text-sm font-semibold" id="aiConfidence">--</span>
+                </div>
+            </div>
+
+            <div class="card rounded-xl p-6 shadow-lg metric-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Total P&L</p>
+                        <p class="text-2xl font-bold" id="totalPnL">$0.00</p>
+                    </div>
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <span class="text-sm text-gray-500">Win Rate: </span>
+                    <span class="text-sm font-semibold" id="winRate">--</span>
+                </div>
+            </div>
+
+            <div class="card rounded-xl p-6 shadow-lg metric-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Moonshot Candidates</p>
+                        <p class="text-2xl font-bold text-gray-800" id="moonshotCount">--</p>
+                    </div>
+                    <div class="bg-yellow-100 p-3 rounded-full">
+                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <span class="text-sm text-gray-500">Top Score: </span>
+                    <span class="text-sm font-semibold" id="topScore">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trading Activity & Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Live Trading Log -->
+            <div class="card rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">📊 Live Trading Activity</h3>
+                    <button onclick="clearTradingLog()" class="text-sm text-gray-500 hover:text-gray-700">Clear</button>
+                </div>
+                <div class="trading-log" id="tradingLog">
+                    <div class="text-center text-gray-500 py-8">
+                        <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        <p>Waiting for trading activity...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Chart -->
+            <div class="card rounded-xl p-6 shadow-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">📈 Performance Chart</h3>
+                <div class="h-64">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bot Details -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Core Bot Details -->
+            <div class="card rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">🎯 Core Bot - Kraken Trading</h3>
+                    <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium" id="coreBotMode">Paper Trading</span>
+                </div>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Strategy:</span>
+                        <span class="font-semibold" id="coreBotStrategy">Technical Analysis</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Assets:</span>
+                        <span class="font-semibold" id="coreBotAssets">BTC, ETH, XRP, SOL, ADA</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Active Positions:</span>
+                        <span class="font-semibold" id="coreBotPositions">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Realized P&L:</span>
+                        <span class="font-semibold" id="coreBotPnLOverview">$0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meme Bot Details -->
+            <div class="card rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">🚀 Meme Bot - AI Moonshot Hunter</h3>
+                    <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium" id="memeBotMode">AI Learning</span>
+                </div>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Strategy:</span>
+                        <span class="font-semibold" id="memeBotStrategy">AI Moonshot Detection</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Exchanges:</span>
+                        <span class="font-semibold" id="memeBotExchanges">Binance.US, Coinbase</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">AI Adaptations:</span>
+                        <span class="font-semibold" id="aiAdaptations">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Top Candidate:</span>
+                        <span class="font-semibold" id="topCandidate">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Moonshot Candidates Table -->
+        <div class="card rounded-xl p-6 shadow-lg mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">🌟 Real-Time Moonshot Candidates</h3>
+                <span class="text-sm text-gray-500" id="candidatesLastUpdate">Last updated: --</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-gray-200">
+                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Symbol</th>
+                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Exchange</th>
+                            <th class="text-right py-3 px-4 font-semibold text-gray-700">Price</th>
+                            <th class="text-right py-3 px-4 font-semibold text-gray-700">24h Volume</th>
+                            <th class="text-right py-3 px-4 font-semibold text-gray-700">24h Change</th>
+                            <th class="text-right py-3 px-4 font-semibold text-gray-700">Moonshot Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="candidatesTable">
+                        <tr>
+                            <td colspan="6" class="text-center py-8 text-gray-500">Loading moonshot candidates...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Core Bot Stats -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Core Bot (Kraken)</h3>
+                    <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">Conservative</span>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Starting Capital:</span>
+                        <span id="coreBotStartingCapital" class="font-semibold text-gray-800">$300.00</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Current Total:</span>
+                        <span id="coreBotTotalValue" class="font-semibold text-lg text-blue-600">$300.00</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">P&L:</span>
+                        <span id="coreBotPnLDetailed" class="font-semibold text-lg">$0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-500">Trades:</span>
+                        <span id="coreBotTradesDetailed" class="text-gray-700">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-500">Win Rate:</span>
+                        <span id="coreBotWinRate" class="text-gray-700">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meme Bot Stats -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Meme Bot (AI)</h3>
+                    <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">High Risk</span>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Starting Capital:</span>
+                        <span id="memeBotStartingCapital" class="font-semibold text-gray-800">$300.00</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Current Total:</span>
+                        <span id="memeBotTotalValue" class="font-semibold text-lg text-purple-600">$300.00</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">P&L:</span>
+                        <span id="memeBotPnL" class="font-semibold text-lg">$0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-500">AI Confidence:</span>
+                        <span id="memeBotConfidence" class="text-gray-700">50%</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-500">Trades:</span>
+                        <span id="memeBotTrades" class="text-gray-700">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Global variables
+        let performanceChart;
+        let isConnected = false;
+        let tradingLogEntries = [];
+        let lastTradeCount = { core: 0, meme: 0 };
+        let lastPositionCount = { core: 0, meme: 0 };
+        let lastLogFetch = Date.now();
+
+        const API_BASE = 'http://localhost:3009';
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeChart();
+            startDataFetching();
+            updateConnectionStatus();
+        });
+
+        // Initialize performance chart
+        function initializeChart() {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Core Bot P&L',
+                            data: [],
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Meme Bot P&L', 
+                            data: [],
+                            borderColor: 'rgb(147, 51, 234)',
+                            backgroundColor: 'rgba(147, 51, 234, 0.1)',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'P&L ($)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Start data fetching
+        function startDataFetching() {
+            fetchDashboardData();
+            setInterval(fetchDashboardData, 3000); // Every 3 seconds
+        }
+
+        // Fetch all dashboard data
+        async function fetchDashboardData() {
+            try {
+                const [statusResponse, coreBotResponse, memeBotResponse] = await Promise.all([
+                    fetch(`${API_BASE}/api/status`),
+                    fetch(`${API_BASE}/api/trading/core-bot-status`),
+                    fetch(`${API_BASE}/api/trading/meme-bot-status`)
+                ]);
+
+                const status = await statusResponse.json();
+                const coreBot = await coreBotResponse.json();
+                const memeBot = await memeBotResponse.json();
+
+                updateDashboard(coreBot, memeBot, status);
+                detectNewTrades(coreBot, memeBot);
+                fetchMoonshotCandidates();
+                
+                isConnected = true;
+                updateConnectionStatus(true);
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+                isConnected = false;
+                updateConnectionStatus(false);
+            }
+        }
+
+        // Detect new trades and add to log - REAL DATA ONLY
+        function detectNewTrades(coreBot, memeBot) {
+            const currentCoreTrades = coreBot.metrics?.totalTrades || 0;
+            const currentCorePositions = coreBot.positions?.length || 0;
+            const currentMemeTrades = memeBot.metrics?.totalTrades || 0;
+            
+            // Core Bot: Check for new trades by comparing trade count AND position changes
+            if (currentCoreTrades > lastTradeCount.core) {
+                // More trades means activity happened
+                if (currentCorePositions > lastPositionCount.core) {
+                    // New position opened (BUY)
+                    const newPosition = coreBot.positions[coreBot.positions.length - 1];
+                    if (newPosition) {
+                        addTradingLogEntry(
+                            'core',
+                            newPosition.symbol,
+                            newPosition.entryPrice.toFixed(newPosition.entryPrice < 1 ? 6 : 2),
+                            'BUY',
+                            `Qty: ${newPosition.quantity.toFixed(4)} | Value: $${newPosition.value.toFixed(2)}`
+                        );
+                    }
+                } else if (currentCorePositions < lastPositionCount.core) {
+                    // Position closed (SELL)
+                    const recentPnL = coreBot.metrics?.realizedPnL || 0;
+                    const avgPnL = recentPnL / Math.max(currentCoreTrades, 1);
+                    addTradingLogEntry(
+                        'core',
+                        'Position Closed',
+                        'Market Price',
+                        'SELL',
+                        `P&L: $${avgPnL.toFixed(2)}`
+                    );
+                }
+                
+                lastTradeCount.core = currentCoreTrades;
+                lastPositionCount.core = currentCorePositions;
+            }
+            
+            // Meme Bot: Check for new trades
+            if (currentMemeTrades > lastTradeCount.meme) {
+                const confidence = memeBot.aiLearning?.confidence || 0;
+                const topCandidate = memeBot.topCandidate?.symbol || 'AI Trade';
+                
+                addTradingLogEntry(
+                    'meme',
+                    topCandidate,
+                    'AI Signal',
+                    'BUY',
+                    `AI Confidence: ${(confidence * 100).toFixed(1)}%`
+                );
+                
+                lastTradeCount.meme = currentMemeTrades;
+            }
+        }
+
+        // Update dashboard with REAL data only
+        function updateDashboard(coreBot, memeBot, status) {
+            // Update status overview - REAL DATA
+            document.getElementById('coreBotStatus').textContent = coreBot.status || 'active';
+            document.getElementById('memeBotStatus').textContent = memeBot.status || 'active';
+            document.getElementById('coreBotTradesOverview').textContent = coreBot.metrics?.totalTrades || 0;
+            document.getElementById('aiConfidence').textContent = 
+                memeBot.aiLearning?.confidence ? `${(memeBot.aiLearning.confidence * 100).toFixed(1)}%` : '0%';
+
+            // Calculate total P&L - REAL DATA
+            const totalPnL = (coreBot.metrics?.realizedPnL || 0) + (memeBot.metrics?.realizedPnL || 0);
+            const totalPnLElement = document.getElementById('totalPnL');
+            totalPnLElement.textContent = `$${totalPnL.toFixed(2)}`;
+            totalPnLElement.className = totalPnL >= 0 ? 'text-2xl font-bold text-green-600' : 'text-2xl font-bold text-red-600';
+
+            // Update win rate - REAL DATA
+            const coreBotWinRate = coreBot.metrics?.winRate || 0;
+            const memeBotWinRate = memeBot.metrics?.winRate || 0;
+            const totalTrades = (coreBot.metrics?.totalTrades || 0) + (memeBot.metrics?.totalTrades || 0);
+            const avgWinRate = totalTrades > 0 ? ((coreBotWinRate + memeBotWinRate) / 2).toFixed(1) : '0.0';
+            document.getElementById('winRate').textContent = `${avgWinRate}%`;
+
+            // Update moonshot info - REAL DATA
+            document.getElementById('moonshotCount').textContent = memeBot.moonshotCandidates || 0;
+            document.getElementById('topScore').textContent = 
+                memeBot.topCandidate?.score ? memeBot.topCandidate.score.toFixed(1) : '0.0';
+
+            // Update bot details - REAL DATA
+            document.getElementById('coreBotStrategy').textContent = coreBot.strategy || 'Technical Analysis + Real Kraken Data';
+            document.getElementById('coreBotAssets').textContent = coreBot.targetAssets || 'BTC, ETH, XRP, SOL, ADA';
+            document.getElementById('coreBotPositions').textContent = coreBot.positions?.length || 0;
+            document.getElementById('coreBotPnLOverview').textContent = `$${(coreBot.metrics?.realizedPnL || 0).toFixed(2)}`;
+
+            document.getElementById('memeBotStrategy').textContent = memeBot.strategy || 'AI Moonshot Detection';
+            document.getElementById('memeBotExchanges').textContent = memeBot.exchanges || 'Binance.US, Coinbase';
+            document.getElementById('aiAdaptations').textContent = memeBot.aiLearning?.adaptations || 0;
+            document.getElementById('topCandidate').textContent = 
+                memeBot.topCandidate?.symbol || 'None';
+
+            // Update chart with REAL DATA
+            updatePerformanceChart(coreBot.metrics?.realizedPnL || 0, memeBot.metrics?.realizedPnL || 0);
+
+            // Update individual bot stats sections - REAL DATA
+            updateIndividualBotStats(coreBot, memeBot);
+
+            // Update last update time
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Update individual bot stats - REAL DATA ONLY
+        function updateIndividualBotStats(coreBot, memeBot) {
+            // Core Bot Stats - REAL DATA
+            document.getElementById('coreBotStartingCapital').textContent = `$${(coreBot.capital || 300).toFixed(2)}`;
+            document.getElementById('coreBotTotalValue').textContent = `$${(coreBot.metrics?.totalValue || 300).toFixed(2)}`;
+            
+            const corePnL = coreBot.metrics?.realizedPnL || 0;
+            const corePnLElement = document.getElementById('coreBotPnLDetailed');
+            corePnLElement.textContent = `$${corePnL.toFixed(2)}`;
+            corePnLElement.className = corePnL >= 0 ? 'font-semibold text-lg text-green-600' : 'font-semibold text-lg text-red-600';
+            
+            document.getElementById('coreBotTradesDetailed').textContent = coreBot.metrics?.totalTrades || 0;
+            document.getElementById('coreBotWinRate').textContent = `${(coreBot.metrics?.winRate || 0).toFixed(1)}%`;
+
+            // Meme Bot Stats - REAL DATA
+            document.getElementById('memeBotStartingCapital').textContent = `$${(memeBot.capital || 300).toFixed(2)}`;
+            document.getElementById('memeBotTotalValue').textContent = `$${(memeBot.metrics?.totalValue || 300).toFixed(2)}`;
+            
+            const memePnL = memeBot.metrics?.realizedPnL || 0;
+            const memePnLElement = document.getElementById('memeBotPnL');
+            memePnLElement.textContent = `$${memePnL.toFixed(2)}`;
+            memePnLElement.className = memePnL >= 0 ? 'font-semibold text-lg text-green-600' : 'font-semibold text-lg text-red-600';
+            
+            document.getElementById('memeBotConfidence').textContent = 
+                memeBot.aiLearning?.confidence ? `${(memeBot.aiLearning.confidence * 100).toFixed(1)}%` : '0%';
+            document.getElementById('memeBotTrades').textContent = memeBot.metrics?.totalTrades || 0;
+        }
+
+        // Update performance chart - REAL DATA ONLY
+        function updatePerformanceChart(corePnL, memePnL) {
+            const now = new Date().toLocaleTimeString();
+            
+            if (performanceChart.data.labels.length > 20) {
+                performanceChart.data.labels.shift();
+                performanceChart.data.datasets[0].data.shift();
+                performanceChart.data.datasets[1].data.shift();
+            }
+            
+            performanceChart.data.labels.push(now);
+            performanceChart.data.datasets[0].data.push(corePnL);
+            performanceChart.data.datasets[1].data.push(memePnL);
+            performanceChart.update('none');
+        }
+
+        // Fetch moonshot candidates - REAL DATA ONLY
+        async function fetchMoonshotCandidates() {
+            try {
+                const response = await fetch(`${API_BASE}/api/moonshot-candidates`);
+                const data = await response.json();
+                
+                // Use ONLY real exchange data
+                const candidates = (data.candidates || []).map(candidate => ({
+                    symbol: candidate.symbol,
+                    exchange: candidate.exchange,
+                    price: candidate.price,
+                    volume24h: candidate.volume24h,
+                    priceChangePercent24h: candidate.priceChangePercent24h,
+                    moonshotScore: candidate.moonshotScore
+                }));
+                
+                updateCandidatesTable(candidates);
+                document.getElementById('candidatesLastUpdate').textContent = 
+                    `Last updated: ${new Date().toLocaleTimeString()}`;
+            } catch (error) {
+                console.error('Error fetching moonshot candidates:', error);
+            }
+        }
+
+        // Update candidates table - REAL DATA ONLY
+        function updateCandidatesTable(candidates) {
+            const tbody = document.getElementById('candidatesTable');
+            
+            if (candidates.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">No moonshot candidates found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = candidates.slice(0, 10).map(candidate => `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="py-3 px-4">
+                        <div class="font-semibold">${candidate.symbol}</div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                            ${candidate.exchange}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-right font-mono">
+                        $${candidate.price < 0.001 ? candidate.price.toFixed(8) : candidate.price.toFixed(6)}
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        $${(candidate.volume24h / 1000000).toFixed(1)}M
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        <span class="${candidate.priceChangePercent24h >= 0 ? 'text-green-600' : 'text-red-600'}">
+                            ${candidate.priceChangePercent24h >= 0 ? '+' : ''}${candidate.priceChangePercent24h.toFixed(2)}%
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        <div class="flex items-center justify-end">
+                            <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                <div class="bg-gradient-to-r from-yellow-400 to-red-500 h-2 rounded-full" 
+                                     style="width: ${Math.min(candidate.moonshotScore * 10, 100)}%"></div>
+                            </div>
+                            <span class="font-semibold">${candidate.moonshotScore.toFixed(1)}</span>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected = isConnected) {
+            const statusElement = document.getElementById('connectionStatus');
+            const textElement = document.getElementById('connectionText');
+            
+            if (connected) {
+                statusElement.className = 'status-indicator status-healthy pulse-dot';
+                textElement.textContent = 'Connected';
+            } else {
+                statusElement.className = 'status-indicator status-error pulse-dot';
+                textElement.textContent = 'Disconnected';
+            }
+        }
+
+        // Clear trading log
+        function clearTradingLog() {
+            tradingLogEntries = [];
+            document.getElementById('tradingLog').innerHTML = `
+                <div class="text-center text-gray-500 py-8">
+                    <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    <p>Trading log cleared. Waiting for new activity...</p>
+                </div>
+            `;
+        }
+
+        // Add trading log entry - REAL DATA ONLY
+        function addTradingLogEntry(type, symbol, price, action, details) {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = {
+                timestamp,
+                type,
+                symbol,
+                price,
+                action,
+                details
+            };
+            
+            tradingLogEntries.unshift(entry);
+            if (tradingLogEntries.length > 50) {
+                tradingLogEntries.pop();
+            }
+            
+            updateTradingLog();
+        }
+
+        // Update trading log display - REAL DATA ONLY
+        function updateTradingLog() {
+            const logContainer = document.getElementById('tradingLog');
+            
+            if (tradingLogEntries.length === 0) {
+                logContainer.innerHTML = `
+                    <div class="text-center text-gray-500 py-8">
+                        <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        <p>Waiting for trading activity...</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            logContainer.innerHTML = tradingLogEntries.map(entry => `
+                <div class="flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-2 h-2 rounded-full ${entry.type === 'core' ? 'bg-blue-500' : 'bg-purple-500'}"></div>
+                        <div>
+                            <div class="font-semibold text-sm">${entry.symbol}</div>
+                            <div class="text-xs text-gray-500">${entry.timestamp}</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-semibold text-sm ${entry.action === 'BUY' ? 'text-green-600' : 'text-red-600'}">
+                            ${entry.action} ${entry.price.startsWith('$') ? entry.price : '$' + entry.price}
+                        </div>
+                        <div class="text-xs text-gray-500">${entry.details}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html> 

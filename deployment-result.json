@@ -1,0 +1,52 @@
+{
+    "Service": {
+        "ServiceName": "crypto-trading-bot",
+        "ServiceId": "1df0c4b7ed7341ab9794d099dbb9125b",
+        "ServiceArn": "arn:aws:apprunner:us-east-1:047719620219:service/crypto-trading-bot/1df0c4b7ed7341ab9794d099dbb9125b",
+        "ServiceUrl": "dspnmjzgc7.us-east-1.awsapprunner.com",
+        "CreatedAt": "2025-07-02T12:21:38.329000-07:00",
+        "UpdatedAt": "2025-07-02T12:21:38.329000-07:00",
+        "Status": "OPERATION_IN_PROGRESS",
+        "SourceConfiguration": {
+            "ImageRepository": {
+                "ImageIdentifier": "public.ecr.aws/docker/library/node:18-alpine",
+                "ImageConfiguration": {
+                    "RuntimeEnvironmentVariables": {
+                        "NODE_ENV": "production"
+                    },
+                    "StartCommand": "node -e \"const http = require('http'); const server = http.createServer((req, res) => { res.writeHead(200, {'Content-Type': 'application/json'}); res.end(JSON.stringify({status: 'healthy', message: 'Crypto trading bot placeholder', timestamp: new Date().toISOString()})); }); server.listen(3000, () => console.log('Server running on port 3000'));\"",
+                    "Port": "3000"
+                },
+                "ImageRepositoryType": "ECR_PUBLIC"
+            },
+            "AutoDeploymentsEnabled": false
+        },
+        "InstanceConfiguration": {
+            "Cpu": "256",
+            "Memory": "512"
+        },
+        "HealthCheckConfiguration": {
+            "Protocol": "TCP",
+            "Path": "/",
+            "Interval": 5,
+            "Timeout": 2,
+            "HealthyThreshold": 1,
+            "UnhealthyThreshold": 5
+        },
+        "AutoScalingConfigurationSummary": {
+            "AutoScalingConfigurationArn": "arn:aws:apprunner:us-east-1:047719620219:autoscalingconfiguration/DefaultConfiguration/1/00000000000000000000000000000001",
+            "AutoScalingConfigurationName": "DefaultConfiguration",
+            "AutoScalingConfigurationRevision": 1
+        },
+        "NetworkConfiguration": {
+            "EgressConfiguration": {
+                "EgressType": "DEFAULT"
+            },
+            "IngressConfiguration": {
+                "IsPubliclyAccessible": true
+            },
+            "IpAddressType": "IPV4"
+        }
+    },
+    "OperationId": "aa3b92cc09154220be3e919912c532be"
+}
